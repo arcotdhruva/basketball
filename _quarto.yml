@@ -1,0 +1,15 @@
+project:
+  type: website
+
+website:
+  title: "NBA Scorigami"
+  navbar:
+    left:
+      - href: basketball.qmd
+        text: Home
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    
