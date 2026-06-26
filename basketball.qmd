@@ -1,32 +1,216 @@
 ---
-format: html
+format:
+  html:
+    css: styles.css
 execute:
   echo: false
 ---
 
+<style>
+body {
+  background: linear-gradient(135deg, #0b0c1a, #1a0533, #0d0221, #0b1a2e);
+  background-size: 400% 400%;
+  animation: gradientShift 12s ease infinite;
+  min-height: 100vh;
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.75s cubic-bezier(.22,.68,0,1.2), transform 0.75s cubic-bezier(.22,.68,0,1.2);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chart-fade {
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s;
+}
+.chart-fade.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.hero-panel {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  padding: 3rem 2rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(6px);
+}
+
+.hero-copy { flex: 1; }
+
+.eyebrow {
+  font-family: monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #9b6dff;
+  margin-bottom: 0.6rem;
+}
+
+.hero-copy h1 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800;
+  color: #f0eeff;
+  line-height: 1.2;
+  margin: 0 0 0.75rem 0;
+}
+
+.hero-copy p {
+  color: #a0a0c8;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.65;
+  max-width: 480px;
+}
+
+.hero-pills {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.hero-pill {
+  font-family: monospace;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(155, 109, 255, 0.15);
+  border: 1px solid rgba(155, 109, 255, 0.35);
+  color: #c9aaff;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.hero-pill:hover {
+  background: rgba(155, 109, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.hero-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 200px;
+}
+
+.hero-metric {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  cursor: default;
+}
+
+.hero-metric:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 8px 30px rgba(155, 109, 255, 0.25);
+  background: rgba(155, 109, 255, 0.12);
+}
+
+.hero-metric strong {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fffb96;
+  font-family: monospace;
+  line-height: 1;
+}
+
+.hero-metric span {
+  font-family: monospace;
+  font-size: 11px;
+  color: #8888aa;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.counter-val {
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+
+.panel {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 1.5rem 2rem;
+  margin: 1.5rem 0;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 24px rgba(100, 80, 200, 0.2);
+}
+
+.panel h3 {
+  color: #d0c8ff;
+  font-family: monospace;
+  margin-top: 0;
+}
+
+.panel p {
+  color: #9090b8;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+</style>
+
 ```{r}
 #| message: false
 #| warning: false
+#| include: false
 
 library(tidyverse)
 library(plotly)
 library(htmltools)
+library(reactable)
 
 games <- read_csv("Games.csv")
+
+games <- games |>
+  mutate(
+    gameDate = as.Date(gameDate),
+    result = case_when(
+      homeScore > awayScore ~ "Home win",
+      homeScore < awayScore ~ "Away win",
+      TRUE ~ "Tie"
+    )
+  )
 
 score_counts <- games |>
   select(home = homeScore, away = awayScore,
          homeTeam = hometeamName, awayTeam = awayteamName,
-         date = gameDate) |>
+         date = gameDate, result) |>
   drop_na() |>
-  filter(home >= 50, away >= 50, home <= 200, away <= 200) |>  # remove bad rows
+  filter(home >= 50, away >= 50, home <= 200, away <= 200) |>
   mutate(
-    date    = as.Date(date),
+    date = as.Date(date),
     matchup = paste0(format(date, "%b %d, %Y"), " — ", homeTeam, " vs ", awayTeam)
   ) |>
-  group_by(home, away) |>
+  group_by(home, away, result) |>
   summarise(
-    n_games  = n(),
+    n_games = n(),
     matchups = {
       u <- sort(unique(matchup))
       if (length(u) > 10) paste0(paste(u[1:10], collapse = "<br>"), "<br>… and ", length(u) - 10, " more")
@@ -37,122 +221,235 @@ score_counts <- games |>
   mutate(
     hover = paste0(
       "<b>Home ", home, "  –  Away ", away, "</b><br>",
+      "Result: ", result, "<br>",
       "Times occurred: ", n_games, "<br><br>",
       matchups
     )
   )
 
 n_unique <- nrow(score_counts)
-year_min <- format(min(as.Date(games$gameDate), na.rm = TRUE), "%Y")
-year_max <- format(max(as.Date(games$gameDate), na.rm = TRUE), "%Y")
+year_min <- format(min(games$gameDate, na.rm = TRUE), "%Y")
+year_max <- format(max(games$gameDate, na.rm = TRUE), "%Y")
+```
 
-fig <- plot_ly(
-  data = score_counts,
-  x    = ~home,
-  y    = ~away,
-  type = "scatter",
-  mode = "markers",
-  marker = list(
-    color      = ~log1p(n_games),
-    colorscale = list(
-      list(0,    "#0d0221"),
-      list(0.2,  "#1a1a5e"),
-      list(0.4,  "#6a0572"),
-      list(0.6,  "#c0392b"),
-      list(0.8,  "#f39c12"),
-      list(1,    "#fffb96")
+::: {.hero-panel .reveal}
+::: hero-copy
+::: eyebrow
+Interactive Quarto dashboard
+:::
+
+# Explore NBA scorelines like a live game study. {.unnumbered}
+
+Hover across the scatter plot, toggle result views, and browse the most common team matchups in a polished, animated experience.
+
+::: hero-pills
+[✨ Scroll reveals]{.hero-pill}
+[📈 Live chart controls]{.hero-pill}
+[🔎 Searchable table]{.hero-pill}
+:::
+:::
+
+::: hero-card
+::: {.hero-metric .js-animated}
+**[100+]{.counter-val data-target="100" data-suffix="+"}**
+
+[unique scoring patterns visible]{style="font-family:monospace;font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;"}
+:::
+
+::: {.hero-metric .js-animated}
+**[3]{.counter-val data-target="3" data-suffix=""}**
+
+[interactive view modes]{style="font-family:monospace;font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;"}
+:::
+
+::: {.hero-metric .js-animated}
+**[Top 10]{.counter-val data-target="10" data-prefix="Top " data-suffix=""}**
+
+[teams ranked by appearances]{style="font-family:monospace;font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:0.08em;"}
+:::
+:::
+:::
+
+::: {.panel .reveal}
+### Interactive NBA score exploration
+
+This Quarto site turns the NBA game data into a live dashboard. Hover over the points, switch views with the buttons, and explore the most frequently appearing teams in the table below.
+:::
+
+::: {.chart-fade .reveal}
+```{r}
+#| message: false
+#| warning: false
+
+fig <- plot_ly() |>
+  add_trace(
+    data = score_counts,
+    x = ~home,
+    y = ~away,
+    type = "scatter",
+    mode = "markers",
+    name = "All games",
+    visible = TRUE,
+    marker = list(
+      color = ~log1p(n_games),
+      colorscale = list(
+        list(0, "#0d0221"),
+        list(0.2, "#1a1a5e"),
+        list(0.4, "#6a0572"),
+        list(0.6, "#c0392b"),
+        list(0.8, "#f39c12"),
+        list(1, "#fffb96")
+      ),
+      cmin = 0,
+      cmax = log1p(max(score_counts$n_games)),
+      size = 7,
+      opacity = 1,
+      line = list(width = 0)
     ),
-    cmin     = 0,
-    cmax     = log1p(max(score_counts$n_games)),
-    size     = 6,
-    opacity  = 1,
-    line     = list(width = 0),
-    colorbar = list(
-      title     = list(text = "Games", font = list(color = "#aaaacc", size = 11)),
-      tickfont  = list(color = "#aaaacc", size = 10),
-      thickness = 14,
-      len       = 0.55,
-      tickvals  = log1p(c(1, 5, 25, 100, 500)),
-      ticktext  = c("1", "5", "25", "100", "500+")
-    )
-  ),
-  text      = ~hover,
-  hoverinfo = "text"
-) |>
+    text = ~hover,
+    hoverinfo = "text"
+  ) |>
+  add_trace(
+    data = score_counts |> filter(result == "Home win"),
+    x = ~home,
+    y = ~away,
+    type = "scatter",
+    mode = "markers",
+    name = "Home wins",
+    visible = FALSE,
+    marker = list(
+      color = ~log1p(n_games),
+      colorscale = list(
+        list(0, "#0d0221"),
+        list(0.2, "#1a1a5e"),
+        list(0.4, "#6a0572"),
+        list(0.6, "#c0392b"),
+        list(0.8, "#f39c12"),
+        list(1, "#fffb96")
+      ),
+      cmin = 0,
+      cmax = log1p(max(score_counts$n_games)),
+      size = 7,
+      opacity = 1,
+      line = list(width = 0)
+    ),
+    text = ~hover,
+    hoverinfo = "text"
+  ) |>
+  add_trace(
+    data = score_counts |> filter(result == "Away win"),
+    x = ~home,
+    y = ~away,
+    type = "scatter",
+    mode = "markers",
+    name = "Away wins",
+    visible = FALSE,
+    marker = list(
+      color = ~log1p(n_games),
+      colorscale = list(
+        list(0, "#0d0221"),
+        list(0.2, "#1a1a5e"),
+        list(0.4, "#6a0572"),
+        list(0.6, "#c0392b"),
+        list(0.8, "#f39c12"),
+        list(1, "#fffb96")
+      ),
+      cmin = 0,
+      cmax = log1p(max(score_counts$n_games)),
+      size = 7,
+      opacity = 1,
+      line = list(width = 0)
+    ),
+    text = ~hover,
+    hoverinfo = "text"
+  ) |>
   add_segments(
     x = 60, xend = 190, y = 60, yend = 190,
-    line       = list(color = "rgba(0,0,0,0.15)", width = 1, dash = "dash"),
-    hoverinfo  = "skip",
+    line = list(color = "rgba(0,0,0,0.15)", width = 1, dash = "dash"),
+    hoverinfo = "skip",
     showlegend = FALSE,
-    inherit    = FALSE
+    inherit = FALSE
   ) |>
   layout(
     paper_bgcolor = "#ffffff",
-    plot_bgcolor  = "#f8f9fa",
+    plot_bgcolor = "#f8f9fa",
     font = list(color = "#333333", family = "monospace"),
+    title = list(text = "NBA Scorigami", x = 0.5),
     xaxis = list(
-      title      = list(text = "Home PTS", font = list(color = "#555555", size = 16)),
-      tickfont   = list(color = "#666666", size = 14),
-      tickangle  = 0,
-      gridcolor  = "#e0e0e0",
+      title = list(text = "Home PTS", font = list(color = "#555555", size = 16)),
+      tickfont = list(color = "#666666", size = 14),
+      tickangle = 0,
+      gridcolor = "#e0e0e0",
       zerolinecolor = "#d0d0d0",
-      dtick      = 10,
-      range      = c(58, 195),      # tight, data-driven range
+      dtick = 10,
+      range = c(58, 195),
       fixedrange = FALSE
     ),
     yaxis = list(
-      title      = list(text = "Visitor PTS", font = list(color = "#555555", size = 16)),
-      tickfont   = list(color = "#666666", size = 14),
-      gridcolor  = "#e0e0e0",
+      title = list(text = "Visitor PTS", font = list(color = "#555555", size = 16)),
+      tickfont = list(color = "#666666", size = 14),
+      gridcolor = "#e0e0e0",
       zerolinecolor = "#d0d0d0",
-      dtick      = 10,
-      range      = c(58, 195),
+      dtick = 10,
+      range = c(58, 195),
       scaleanchor = "x",
-      scaleratio  = 1,
-      fixedrange  = FALSE
+      scaleratio = 1,
+      fixedrange = FALSE
     ),
-    margin = list(t = 100, r = 50, b = 100, l = 100),
+    margin = list(t = 120, r = 50, b = 100, l = 100),
     height = 700,
     hoverlabel = list(
-      bgcolor     = "#f0f0f5",
+      bgcolor = "#f0f0f5",
       bordercolor = "#999999",
-      font        = list(color = "#333333", size = 12, family = "monospace")
+      font = list(color = "#333333", size = 12, family = "monospace")
+    ),
+    updatemenus = list(
+      list(
+        type = "buttons",
+        direction = "right",
+        x = 0.5,
+        y = 1.11,
+        xanchor = "center",
+        yanchor = "top",
+        bgcolor = "#f8f9fa",
+        bordercolor = "#d0d0d0",
+        showactive = TRUE,
+        buttons = list(
+          list(
+            label = "All games",
+            method = "update",
+            args = list(list(visible = c(TRUE, FALSE, FALSE)), list(title = "All games"))
+          ),
+          list(
+            label = "Home wins",
+            method = "update",
+            args = list(list(visible = c(FALSE, TRUE, FALSE)), list(title = "Home wins"))
+          ),
+          list(
+            label = "Away wins",
+            method = "update",
+            args = list(list(visible = c(FALSE, FALSE, TRUE)), list(title = "Away wins"))
+          )
+        )
+      )
     )
   ) |>
   config(
-    displayModeBar          = TRUE,
-    modeBarButtonsToRemove  = c("select2d", "lasso2d", "autoScale2d"),
-    displaylogo             = FALSE,
-    scrollZoom              = TRUE
-  )
-
-# Add title and subtitle annotations to the plot
-fig <- fig |>
-  layout(
-    annotations = list(
-      # Main title
-      list(
-        text = "<b>NBA Scorigami</b>",
-        x = 0.5, xref = "paper",
-        y = 1.12, yref = "paper",
-        showarrow = FALSE,
-        font = list(size = 24, color = "#333333"),
-        xanchor = "center", yanchor = "top"
-      ),
-      # Subtitle about home team advantage
-      list(
-        text = "<i>Home teams have a significant advantage: most games cluster below the diagonal line</i>",
-        x = 0.5, xref = "paper",
-        y = 1.06, yref = "paper",
-        showarrow = FALSE,
-        font = list(size = 14, color = "#666666"),
-        xanchor = "center", yanchor = "top"
-      )
-    )
+    displayModeBar = TRUE,
+    modeBarButtonsToRemove = c("select2d", "lasso2d", "autoScale2d"),
+    displaylogo = FALSE,
+    scrollZoom = TRUE
   )
 
 fig
 ```
+:::
+
+::: {.panel .reveal}
+### Scoreline highlights
+
+These points reveal where final totals cluster, making it easier to see how often specific results repeat across seasons.
+:::
 
 ```{r}
 #| message: false
@@ -160,8 +457,7 @@ fig
 
 htmltools::div(
   style = "margin: 30px 0 40px 0; text-align: center; color: #888888; font-family: monospace; font-size: 12px;",
-  paste0("Data: NBA games from ", year_min, " to ", year_max, " | Hover over dots to see game details | ", 
-         format(n_unique, big.mark = ","), " unique final scores")
+  paste0("Data: NBA games from ", year_min, " to ", year_max, " | Hover over dots for details | ", format(n_unique, big.mark = ","), " unique scorelines")
 )
 ```
 
@@ -169,12 +465,10 @@ htmltools::div(
 #| message: false
 #| warning: false
 
-library(reactable)
-
 top10 <- games |>
   pivot_longer(
-    cols      = c(hometeamName, awayteamName),
-    names_to  = "side",
+    cols = c(hometeamName, awayteamName),
+    names_to = "side",
     values_to = "team"
   ) |>
   count(team, name = "games_played") |>
@@ -184,16 +478,20 @@ top10 <- games |>
 
 tbl <- reactable(
   top10,
+  searchable = TRUE,
+  filterable = TRUE,
+  defaultPageSize = 10,
+  paginationType = "simple",
   columns = list(
-    rank         = colDef(name = "#",           maxWidth = 45,
-                          style = list(color = "#6666aa", fontWeight = "bold")),
-    team         = colDef(name = "Team",        minWidth = 160),
+    rank = colDef(name = "#", maxWidth = 45,
+                 style = list(color = "#6666aa", fontWeight = "bold")),
+    team = colDef(name = "Team", minWidth = 160),
     games_played = colDef(name = "Games Played", minWidth = 120,
                           align = "right",
                           format = colFormat(separators = TRUE),
-                          cell = function(value, index) {
+                          cell = function(value) {
                             max_val <- max(top10$games_played)
-                            pct     <- value / max_val
+                            pct <- value / max_val
                             htmltools::div(
                               style = "display:flex; align-items:center; gap:8px; justify-content:flex-end;",
                               htmltools::div(
@@ -203,30 +501,28 @@ tbl <- reactable(
                                   "background: linear-gradient(90deg, #4b0082, #e84545);"
                                 )
                               ),
-                              htmltools::span(format(value, big.mark = ","),
-                                              style = "color:#e0e0ff; min-width:40px;")
+                              htmltools::span(format(value, big.mark = ","), style = "color:#e0e0ff; min-width:40px;")
                             )
                           })
   ),
   theme = reactableTheme(
-    backgroundColor  = "#0b0c1a",
-    borderColor      = "#1e1f33",
-    stripedColor     = "#10112a",
-    highlightColor   = "#1a1b3a",
-    color            = "#d0d0f0",
-    headerStyle      = list(
+    backgroundColor = "#0b0c1a",
+    borderColor = "#1e1f33",
+    stripedColor = "#10112a",
+    highlightColor = "#1a1b3a",
+    color = "#d0d0f0",
+    headerStyle = list(
       background = "#0d0e22",
-      color      = "#8888cc",
+      color = "#8888cc",
       fontFamily = "monospace",
-      fontSize   = "12px",
+      fontSize = "12px",
       borderColor = "#1e1f33"
     ),
     style = list(fontFamily = "monospace", fontSize = "14px")
   ),
-  striped    = TRUE,
-  highlight  = TRUE,
-  borderless = FALSE,
-  pagination = FALSE
+  striped = TRUE,
+  highlight = TRUE,
+  borderless = FALSE
 )
 
 browsable(
@@ -236,3 +532,79 @@ browsable(
   )
 )
 ```
+
+::: {.panel .reveal}
+### Browse the leaderboard
+
+Search teams, filter the table, and discover which franchises appear most often in the dataset.
+:::
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+
+    const revealItems = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          if (entry.target.classList.contains('hero-panel')) {
+            startCounters();
+          }
+        }
+      });
+    }, { threshold: 0.15 });
+
+    revealItems.forEach((item) => observer.observe(item));
+
+    const chartFades = document.querySelectorAll('.chart-fade');
+    const chartObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, { threshold: 0.05 });
+
+    chartFades.forEach((el) => chartObserver.observe(el));
+
+    const cards = document.querySelectorAll('.js-animated');
+    cards.forEach((card, index) => {
+      card.style.transitionDelay = `${index * 90}ms`;
+    });
+
+    let countersStarted = false;
+
+    function animateCounter(el) {
+      const target = parseInt(el.dataset.target, 10);
+      const prefix = el.dataset.prefix || '';
+      const suffix = el.dataset.suffix || '';
+      const duration = 1200;
+      const startTime = performance.now();
+
+      function tick(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(eased * target);
+        el.textContent = prefix + current + suffix;
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    function startCounters() {
+      if (countersStarted) return;
+      countersStarted = true;
+      document.querySelectorAll('.counter-val').forEach((el) => {
+        setTimeout(() => animateCounter(el), 300);
+      });
+    }
+
+    setTimeout(() => {
+      const hero = document.querySelector('.hero-panel');
+      if (hero && hero.classList.contains('is-visible')) startCounters();
+    }, 500);
+
+  });
+</script>
